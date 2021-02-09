@@ -1,0 +1,77 @@
+<launch>
+  <!--arg name="scan_topic" default="/scan"/-->
+  <!--arg name="map_topic" default="/map"/-->
+
+  <!-- ROS navigation stack move_base -->
+  <!--remap from="scan"             to="$(arg scan_topic)"/-->  <!-- see costmap_common_params_2d.yaml -->
+  <!--remap from="map"              to="$(arg map_topic)"/-->   <!-- see global_costmap_params.yaml -->
+        
+
+  
+	  <arg name="open_rviz" default="true"/>
+	  <arg name="rtabmapviz" default="true"/>
+	  <arg name="move_forward_only" default="false"/>
+
+	  <arg name="with_camera" default="true"/>
+	  <!--arg name="localization" default="false"/-->
+	  <arg name="localization" default="true"/>
+	  <arg name="database_path" default="~/.ros/rtabmap.db"/>
+	  <arg     if="$(arg localization)" name="rtabmap_args" default=""/>
+	  <arg unless="$(arg localization)" name="rtabmap_args" default="-d"/>
+	  
+	<group ns="rtabmap">
+	    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="$(arg rtabmap_args)">
+		  <param name="database_path"       type="string" value="$(arg database_path)"/>
+		  <param name="frame_id"            type="string" value="base_link"/>
+		 
+		  <param name="subscribe_scan"      type="bool"   value="true"/>
+		  <param name="approx_sync"         type="bool"   value="true"/>
+
+		  <!-- use actionlib to send goals to move_base --> 
+		  <param name="use_action_for_goal" type="bool" value="true"/>
+		  <remap from="move_base"            to="/move_base"/>
+		
+		  <!-- inputs -->
+		  <remap from="scan"            to="/scan"/>
+		  <remap from="odom"            to="/odom"/>
+		  <!--remap from="rgb/image"       to="/camera/rgb/image_raw"/-->
+		  <remap from="rgb/image"       to="/camera/data_throttled_image"/>
+	  	  <!--remap from="depth/image"     to="/camera/depth/image_raw"/-->
+	  	  <remap from="depth/image"     to="/camera/data_throttled_image_depth"/>
+	  	  <!--remap from="rgb/camera_info" to="/camera/rgb/camera_info"/-->
+	  	  <remap from="rgb/camera_info" to="/camera/data_throttled_camera_info"/>
+
+	  	  <!-- output -->
+	  	  <remap from="grid_map" to="/map"/>
+		
+		  <!-- RTAB-Map's parameters -->
+		  <param name="Reg/Strategy"                 type="string" value="1"/>
+		  <param name="Reg/Force3DoF"                type="string" value="true"/>
+		  <param name="GridGlobal/MinSize"           type="string" value="20"/>
+
+		  <!-- localization mode -->
+		  <param     if="$(arg localization)" name="Mem/IncrementalMemory" type="string" value="false"/>
+		  <param unless="$(arg localization)" name="Mem/IncrementalMemory" type="string" value="true"/>
+	    </node>
+	    
+	        <!-- visualization with rtabmapviz -->
+	    <node if="$(arg rtabmapviz)" pkg="rtabmap_ros" type="rtabmapviz" name="rtabmapviz" args="-d $(find rtabmap_ros)/launch/config/rgbd_gui.ini" output="screen">
+	      <param name="subscribe_scan"   type="bool"   value="true"/>
+	      <param name="subscribe_odom"   type="bool"   value="true"/>
+	      <param name="frame_id"         type="string" value="base_footprint"/>
+	      <param name="approx_sync"      type="bool"   value="true"/>ter
+
+	      <remap from="odom"            to="/odom"/>
+	      <remap from="scan"            to="/scan"/>
+	    </node>
+	  </group>
+
+  <node pkg="move_base" type="move_base" respawn="true" name="move_base" output="screen">
+     <param name="base_global_planner" value="navfn/NavfnROS"/>
+     <rosparam file="$(find alphabot2_nav)/include/costmap_common_params.yaml" command="load" ns="global_costmap" />
+     <rosparam file="$(find alphabot2_nav)/include/costmap_common_params.yaml" command="load" ns="local_costmap" />
+     <rosparam file="$(find alphabot2_nav)/include/local_costmap_params.yaml" command="load" ns="local_costmap" />
+     <rosparam file="$(find alphabot2_nav)/include/global_costmap_params.yaml" command="load" ns="global_costmap"/>
+     <rosparam file="$(find alphabot2_nav)/include/base_local_planner_params.yaml" command="load" />
+  </node>
+</launch>
